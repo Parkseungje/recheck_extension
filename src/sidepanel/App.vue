@@ -280,7 +280,6 @@ function revealHint(qIndex: number) {
           ({{ openHints[i] ?? 0 }}/{{ q.hints.length }})
         </button>
 
-        <p v-else class="pointer">📄 {{ q.source_pointer }}</p>
       </article>
 
       <p class="reflect">{{ t.reflect }}</p>
