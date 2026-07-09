@@ -7,9 +7,11 @@ import { MODE_FORMULAS, MODES, type Mode } from './modes'
 // mode === 'auto'     → 모델이 스스로 판별 + 4개 공식 모두 제공 (6단계)
 //
 // language: 질문·힌트를 출력할 언어 (UI에서 선택한 언어). 글 본문 언어와 무관하게 이 언어로 쓴다.
+// count: 생성할 질문 개수 (설정에서 선택, 기본 2).
 export function buildSystemPrompt(
   mode: Mode | 'auto',
   language: string,
+  count: number,
   skeleton: string = DEFAULT_SKELETON,
 ): string {
   let modeSection: string
@@ -25,18 +27,21 @@ export function buildSystemPrompt(
 - 소화: 읽고 음미하는 글 (에세이·교양·서사)
 
 # 2단계 — 질문 생성
-판별한 모드에 해당하는 아래 공식에 따라 질문 2개를 만든다.
+판별한 모드에 해당하는 아래 공식에 따라 질문 ${count}개를 만든다.
 
 ${allFormulas}`
   } else {
     modeSection = `# 질문 생성
-이 글은 "${mode}" 모드로 다룬다. 아래 공식에 따라 질문 2개를 만든다.
+이 글은 "${mode}" 모드로 다룬다. 아래 공식에 따라 질문 ${count}개를 만든다.
 출력 JSON의 mode 필드에는 "${mode}"를 넣어라.
 
 ${MODE_FORMULAS[mode]}`
   }
 
-  return skeleton.replace('{{MODE_SECTION}}', modeSection).replace('{{LANGUAGE}}', language)
+  return skeleton
+    .replace('{{MODE_SECTION}}', modeSection)
+    .replace('{{LANGUAGE}}', language)
+    .replaceAll('{{COUNT}}', String(count))
 }
 
 // 실제 API에 보낼 user 메시지: 본문 텍스트.

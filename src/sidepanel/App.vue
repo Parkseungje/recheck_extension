@@ -10,6 +10,7 @@ const settings = reactive({
   provider: 'claude' as ProviderId,
   model: '',
   apiKey: '',
+  questionCount: 2, // 생성할 질문 수 (1~5, 기본 2)
 })
 const showSettings = ref(true)
 
@@ -74,9 +75,16 @@ chrome.tabs.onUpdated.addListener((_tabId, info, tab) => {
 
 onMounted(async () => {
   refreshForActiveTab()
-  const saved = await chrome.storage.local.get(['provider', 'model', 'apiKey', 'locale'])
+  const saved = await chrome.storage.local.get([
+    'provider',
+    'model',
+    'apiKey',
+    'locale',
+    'questionCount',
+  ])
   if (saved.locale) locale.value = saved.locale
   if (saved.provider) settings.provider = saved.provider
+  if (saved.questionCount) settings.questionCount = saved.questionCount
   if (saved.apiKey) {
     settings.apiKey = saved.apiKey
     showSettings.value = false
@@ -92,6 +100,7 @@ async function saveSettings() {
     provider: settings.provider,
     model: settings.model,
     apiKey: settings.apiKey,
+    questionCount: settings.questionCount,
   })
   showSettings.value = false
 }
@@ -176,7 +185,7 @@ async function generate() {
     }
     articleTitle.value = article.title || ''
 
-    const systemPrompt = buildSystemPrompt('auto', LANGUAGE_NAMES[locale.value])
+    const systemPrompt = buildSystemPrompt('auto', LANGUAGE_NAMES[locale.value], settings.questionCount)
     const userMessage = buildUserMessage(article.text)
 
     const raw = await providerObj.value.complete({
@@ -186,7 +195,7 @@ async function generate() {
       userMessage,
     })
 
-    const parsed = parseQuestionSet(raw)
+    const parsed = parseQuestionSet(raw, settings.questionCount)
     result.value = parsed
     parsed.questions.forEach((_, i) => {
       openHints[i] = 0
@@ -208,7 +217,7 @@ function revealHint(qIndex: number) {
 
 <template>
   <header>
-    <h1>ReCheck</h1>
+    <h1><span class="mark">Re</span>Check</h1>
     <button class="link" @click="showSettings = !showSettings">
       {{ showSettings ? t.close : t.settings }}
     </button>
@@ -236,6 +245,13 @@ function revealHint(qIndex: number) {
       {{ t.model }}
       <select v-model="settings.model">
         <option v-for="m in providerObj.models" :key="m" :value="m">{{ m }}</option>
+      </select>
+    </label>
+
+    <label>
+      {{ t.questionCount }}
+      <select v-model.number="settings.questionCount">
+        <option v-for="n in 5" :key="n" :value="n">{{ n }}</option>
       </select>
     </label>
 
@@ -316,127 +332,213 @@ header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 h1 {
-  font-size: 16px;
+  font-size: 17px;
+  font-weight: 800;
   margin: 0;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
+  color: var(--fg);
 }
+h1 .mark {
+  color: var(--accent);
+}
+
 .card {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 14px;
+  border-radius: var(--radius);
+  padding: 15px;
   margin-bottom: 12px;
+  box-shadow: var(--shadow-card);
 }
+
 label {
   display: block;
   font-size: 12px;
+  font-weight: 600;
   color: var(--muted);
-  margin-bottom: 10px;
+  letter-spacing: 0.01em;
+  margin-bottom: 13px;
 }
 select,
 input {
   display: block;
   width: 100%;
-  margin-top: 4px;
-  padding: 8px;
+  margin-top: 6px;
+  padding: 9px 11px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   font-size: 14px;
   color: var(--fg);
   background: #fff;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
-.sel-count {
-  font-size: 12px;
-  font-weight: 600;
-  border-radius: 6px;
-  padding: 6px 10px;
-  margin: 8px 0 0;
-  background: #eff6ff;
-  color: #1d4ed8;
-  border: 1px solid #bfdbfe;
+select:focus,
+input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--ring);
 }
-.sel-count.over {
-  background: #fef2f2;
-  color: #dc2626;
-  border-color: #fecaca;
-}
+
 .hint-note {
-  font-size: 11px;
+  font-size: 11.5px;
+  line-height: 1.55;
   color: var(--muted);
-  margin: 4px 0 12px;
+  margin: 4px 0 14px;
 }
+
+/* 프라이머리 — 페이지의 유일한 볼드. 틸 그라디언트 + 소프트 글로우 */
 button.primary {
-  background: var(--accent);
+  background: linear-gradient(135deg, #16b8a6 0%, var(--accent) 55%, var(--accent-strong) 100%);
   color: #fff;
   border: none;
-  border-radius: 8px;
-  padding: 10px 14px;
+  border-radius: 10px;
+  padding: 11px 16px;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  box-shadow: 0 8px 18px -10px rgba(13, 148, 136, 0.65);
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    filter 0.15s ease;
+}
+button.primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 22px -10px rgba(13, 148, 136, 0.7);
+  filter: saturate(1.05);
+}
+button.primary:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 5px 12px -8px rgba(13, 148, 136, 0.6);
 }
 button.primary:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
+  box-shadow: none;
+  cursor: default;
 }
 button.block {
   width: 100%;
   margin-bottom: 12px;
 }
+
 button.link {
   background: none;
   border: none;
   color: var(--accent);
   font-size: 13px;
-  padding: 2px 0;
+  font-weight: 600;
+  padding: 3px 0;
+  transition: color 0.15s ease;
 }
+button.link:hover {
+  color: var(--accent-strong);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ring);
+  border-radius: 6px;
+}
+
+/* 글자수 카운터 — 쿨 틸(정상) / 레드(초과) */
+.sel-count {
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  border-radius: var(--radius-sm);
+  padding: 7px 11px;
+  margin: 10px 0 0;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  border: 1px solid var(--accent-line);
+}
+.sel-count.over {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border-color: var(--danger-border);
+}
+
 .error {
-  color: #dc2626;
+  color: var(--danger);
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius-sm);
+  padding: 9px 11px;
   font-size: 13px;
+  margin: 10px 0 0;
 }
+
 .mode-badge {
   display: inline-block;
   font-size: 11px;
-  color: var(--muted);
-  background: var(--border);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
   border-radius: 999px;
-  padding: 2px 10px;
+  padding: 3px 11px;
 }
 .article-title {
   font-size: 13px;
   color: var(--muted);
-  margin: 6px 0 12px;
+  margin: 8px 0 12px;
 }
+
 .question .q-text {
-  margin: 0 0 10px;
+  margin: 0 0 12px;
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--fg);
 }
+.question .q-text strong {
+  color: var(--accent);
+  font-weight: 800;
+  margin-right: 2px;
+}
+
 .hints {
   margin-bottom: 8px;
 }
 .hint {
-  background: #fffbeb;
-  border-left: 3px solid #fbbf24;
-  padding: 8px 10px;
-  border-radius: 4px;
-  margin: 6px 0;
+  background: linear-gradient(0deg, #f2faf8, #f2faf8);
+  border-left: 3px solid var(--accent);
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  margin: 7px 0;
   font-size: 13px;
+  line-height: 1.55;
+  color: #12403b;
 }
+
 .source-row {
-  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
 }
 .not-found {
   font-size: 12px;
   color: var(--muted);
-  margin-left: 8px;
 }
+
 .reflect {
   text-align: center;
   font-size: 13px;
-  color: var(--fg);
-  background: var(--card);
-  border: 1px dashed var(--border);
-  border-radius: 10px;
+  font-weight: 500;
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+  border: 1px dashed var(--accent-line);
+  border-radius: var(--radius);
   padding: 14px;
   margin-top: 4px;
 }

@@ -61,31 +61,91 @@ if (!window.__recheckContentReady) {
 
   let highlightTimer: number | undefined
 
+  // range에 노란 하이라이트를 걸고 3초 뒤 해제. (CSS Custom Highlight — DOM 미변경)
+  function applyHighlight(range: Range): void {
+    const cssHighlights = (CSS as unknown as { highlights?: Map<string, unknown> }).highlights
+    const HighlightCtor = (window as unknown as { Highlight?: new (r: Range) => unknown }).Highlight
+    if (!cssHighlights || !HighlightCtor) return // 미지원 → 스크롤만
+    cssHighlights.set('recheck-anchor', new HighlightCtor(range))
+    if (highlightTimer) clearTimeout(highlightTimer)
+    highlightTimer = window.setTimeout(() => cssHighlights.delete('recheck-anchor'), 3000)
+  }
+
+  function scrollToRange(range: Range): void {
+    const rect = range.getBoundingClientRect()
+    if (rect.width === 0 && rect.height === 0) {
+      range.startContainer.parentElement?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      return
+    }
+    window.scrollTo({ top: window.scrollY + rect.top - window.innerHeight / 2, behavior: 'smooth' })
+  }
+
+  // 공백을 전부 무시하고 DOM 텍스트에서 구절을 찾는다.
+  // 정제본(AI에 보낸 텍스트)과 렌더 DOM의 공백·줄바꿈·문단경계 차이를 넘어 매칭.
+  function findRangeIgnoringWhitespace(query: string): Range | null {
+    const needle = query.replace(/\s+/g, '')
+    if (needle.length < 4) return null
+
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+      acceptNode(node) {
+        const parent = (node as Text).parentElement
+        if (!parent || parent.closest('script,style,noscript')) return NodeFilter.FILTER_REJECT
+        return NodeFilter.FILTER_ACCEPT
+      },
+    })
+
+    let compact = ''
+    const map: { node: Text; offset: number }[] = [] // compact[i] → 원본 노드·오프셋
+    let node: Node | null
+    while ((node = walker.nextNode())) {
+      const data = (node as Text).data
+      for (let i = 0; i < data.length; i++) {
+        if (/\s/.test(data[i])) continue
+        compact += data[i]
+        map.push({ node: node as Text, offset: i })
+      }
+    }
+
+    const idx = compact.indexOf(needle)
+    if (idx === -1) return null
+    const start = map[idx]
+    const end = map[idx + needle.length - 1]
+    if (!start || !end) return null
+    try {
+      const range = document.createRange()
+      range.setStart(start.node, start.offset)
+      range.setEnd(end.node, end.offset + 1)
+      return range
+    } catch {
+      return null
+    }
+  }
+
   // anchor 구절을 찾아 스크롤 + 노란 하이라이트(3초). 성공 시 true.
   function highlightAnchor(query: string): boolean {
     const text = query.trim()
     if (!text) return false
 
+    // 1) 정확 매칭 (window.find) — 스크롤까지 처리
     const selection = window.getSelection()
     selection?.removeAllRanges()
-    // window.find: 렌더 텍스트에서 매칭 + 화면으로 스크롤 (Chrome 지원)
     const found = (window as unknown as { find: (...args: unknown[]) => boolean }).find(
       text, false, false, true, false, false, false,
     )
-    if (!found) return false
-
-    const range =
-      selection && selection.rangeCount > 0 ? selection.getRangeAt(0).cloneRange() : null
+    if (found) {
+      const range =
+        selection && selection.rangeCount > 0 ? selection.getRangeAt(0).cloneRange() : null
+      selection?.removeAllRanges()
+      if (range) applyHighlight(range) // window.find가 이미 스크롤함
+      return true
+    }
     selection?.removeAllRanges()
-    if (!range) return true // 스크롤은 됐으나 range 확보 실패 — 하이라이트만 생략
 
-    const cssHighlights = (CSS as unknown as { highlights?: Map<string, unknown> }).highlights
-    const HighlightCtor = (window as unknown as { Highlight?: new (r: Range) => unknown }).Highlight
-    if (!cssHighlights || !HighlightCtor) return true // 하이라이트 미지원 → 스크롤만
-
-    cssHighlights.set('recheck-anchor', new HighlightCtor(range))
-    if (highlightTimer) clearTimeout(highlightTimer)
-    highlightTimer = window.setTimeout(() => cssHighlights.delete('recheck-anchor'), 3000)
+    // 2) 공백 무시 폴백 (정제본↔렌더 DOM 공백 차이 대응)
+    const range = findRangeIgnoringWhitespace(text)
+    if (!range) return false
+    scrollToRange(range)
+    applyHighlight(range)
     return true
   }
 

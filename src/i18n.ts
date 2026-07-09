@@ -38,6 +38,7 @@ export interface Messages {
   provider: string
   language: string
   model: string
+  questionCount: string
   apiKey: string
   keyNote: string
   save: string
@@ -73,6 +74,7 @@ export const MESSAGES: Record<Locale, Messages> = {
     provider: 'AI Provider',
     language: 'Language',
     model: 'Model',
+    questionCount: 'Questions',
     apiKey: 'API Key',
     keyNote: 'Your key is stored only in this browser and is never sent to a server.',
     save: 'Save',
@@ -108,6 +110,7 @@ export const MESSAGES: Record<Locale, Messages> = {
     provider: 'AI 提供方',
     language: '语言',
     model: '模型',
+    questionCount: '问题数量',
     apiKey: 'API 密钥',
     keyNote: '密钥仅保存在此浏览器中，绝不会发送到任何服务器。',
     save: '保存',
@@ -142,6 +145,7 @@ export const MESSAGES: Record<Locale, Messages> = {
     provider: 'AI 供應商',
     language: '語言',
     model: '模型',
+    questionCount: '問題數量',
     apiKey: 'API 金鑰',
     keyNote: '金鑰僅儲存在此瀏覽器中，絕不會傳送到任何伺服器。',
     save: '儲存',
@@ -176,6 +180,7 @@ export const MESSAGES: Record<Locale, Messages> = {
     provider: 'AI プロバイダー',
     language: '言語',
     model: 'モデル',
+    questionCount: '質問数',
     apiKey: 'API キー',
     keyNote: 'キーはこのブラウザにのみ保存され、サーバーには送信されません。',
     save: '保存',
@@ -211,6 +216,7 @@ export const MESSAGES: Record<Locale, Messages> = {
     provider: 'AI 제공자',
     language: '언어',
     model: '모델',
+    questionCount: '질문 수',
     apiKey: 'API 키',
     keyNote: '키는 이 브라우저에만 저장되고 서버로 전송되지 않습니다.',
     save: '저장',
@@ -245,6 +251,7 @@ export const MESSAGES: Record<Locale, Messages> = {
     provider: "Fournisseur d'IA",
     language: 'Langue',
     model: 'Modèle',
+    questionCount: 'Nombre de questions',
     apiKey: 'Clé API',
     keyNote: "Votre clé est stockée uniquement dans ce navigateur et n'est jamais envoyée à un serveur.",
     save: 'Enregistrer',
@@ -281,6 +288,7 @@ export const MESSAGES: Record<Locale, Messages> = {
     provider: 'Proveedor de IA',
     language: 'Idioma',
     model: 'Modelo',
+    questionCount: 'Número de preguntas',
     apiKey: 'Clave API',
     keyNote: 'Tu clave se guarda solo en este navegador y nunca se envía a un servidor.',
     save: 'Guardar',
@@ -317,6 +325,7 @@ export const MESSAGES: Record<Locale, Messages> = {
     provider: 'Провайдер ИИ',
     language: 'Язык',
     model: 'Модель',
+    questionCount: 'Число вопросов',
     apiKey: 'API-ключ',
     keyNote: 'Ключ хранится только в этом браузере и никогда не отправляется на сервер.',
     save: 'Сохранить',
