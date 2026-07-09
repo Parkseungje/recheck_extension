@@ -35,7 +35,7 @@ export interface QuestionSet {
 
 // 모델 응답(JSON 문자열)을 QuestionSet으로 파싱.
 // provider마다 코드펜스를 붙이는 등 오염이 있으므로 방어적으로 처리한다.
-export function parseQuestionSet(raw: string): QuestionSet {
+export function parseQuestionSet(raw: string, maxQuestions = 2): QuestionSet {
   let text = raw.trim()
 
   // 코드펜스 제거 (```json ... ``` 또는 ``` ... ```)
@@ -61,7 +61,7 @@ export function parseQuestionSet(raw: string): QuestionSet {
   }
 
   // 최소한의 형태 보정
-  const questions: Question[] = data.questions.slice(0, 2).map((q: any) => ({
+  const questions: Question[] = data.questions.slice(0, maxQuestions).map((q: any) => ({
     question: String(q?.question ?? '').trim(),
     hints: Array.isArray(q?.hints) ? q.hints.slice(0, 3).map((h: any) => String(h).trim()) : [],
     anchor: String(q?.anchor ?? '').trim(),
