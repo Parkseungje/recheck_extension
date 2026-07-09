@@ -3,8 +3,8 @@ import type { Provider, GenerateParams } from './types'
 export const claudeProvider: Provider = {
   id: 'claude',
   label: 'Claude (Anthropic)',
-  defaultModel: 'claude-sonnet-4-6',
-  models: ['claude-sonnet-4-6', 'claude-opus-4-8', 'claude-haiku-4-5-20251001'],
+  defaultModel: 'claude-sonnet-5',
+  models: ['claude-sonnet-5', 'claude-opus-4-8', 'claude-haiku-4-5-20251001'],
 
   async complete({ apiKey, model, systemPrompt, userMessage }: GenerateParams): Promise<string> {
     const res = await fetch('https://api.anthropic.com/v1/messages', {

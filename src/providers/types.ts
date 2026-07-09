@@ -25,7 +25,7 @@ export interface Provider {
 export interface Question {
   question: string
   hints: string[]
-  source_pointer: string
+  anchor: string
 }
 
 export interface QuestionSet {
@@ -64,7 +64,7 @@ export function parseQuestionSet(raw: string): QuestionSet {
   const questions: Question[] = data.questions.slice(0, 2).map((q: any) => ({
     question: String(q?.question ?? '').trim(),
     hints: Array.isArray(q?.hints) ? q.hints.slice(0, 3).map((h: any) => String(h).trim()) : [],
-    source_pointer: String(q?.source_pointer ?? '').trim(),
+    anchor: String(q?.anchor ?? '').trim(),
   }))
 
   return { mode: data.mode ?? '알 수 없음', questions }
