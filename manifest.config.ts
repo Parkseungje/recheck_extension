@@ -22,6 +22,8 @@ export default defineManifest({
     'sidePanel', // 사이드패널 API
     'tabs', // 활성 탭 조회
     'storage', // provider 선택값 · API 키 · 프롬프트 저장
+    'scripting', // 이미 열려 있던 탭에 content script 직접 주입 (새로고침 불필요)
+    'activeTab', // 위 주입에 필요한 활성 탭 접근 권한 (아이콘 클릭 제스처로 부여)
   ],
 
   // ⚠️ 3사 API 도메인. 이게 없으면 확장에서 외부 호출이 CORS/CSP로 막힌다.

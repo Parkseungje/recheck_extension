@@ -123,11 +123,13 @@ AI가 등장하는 지점은 **③ 질문 생성 딱 한 번.** 이후는 전부
 
 ```
 [크롬 확장 — Manifest V3]
- ├─ content script : Readability.js로 현재 페이지 본문 추출
- ├─ side panel (UI) : 질문/힌트 렌더, 답 입력창
- ├─ service worker  : provider API 직접 fetch
- └─ chrome.storage.local : provider 선택값 + API 키 저장
+ ├─ content script : Readability.js로 현재 페이지 본문 추출 (EXTRACT 메시지 수신 시에만)
+ ├─ side panel (UI) : 질문/힌트 렌더 + provider API 직접 fetch
+ ├─ service worker  : 아이콘 클릭 시 사이드패널 오픈 설정
+ └─ chrome.storage.local : provider 선택값 · 모델 · API 키 · 프롬프트 뼈대 저장
 ```
+
+> API 호출은 service worker가 아니라 **사이드패널(확장 페이지)에서 직접 fetch**한다. MV3에서 확장 페이지의 fetch도 `host_permissions` 등록 도메인에 한해 CORS가 열리므로, 별도 메시지 중계 없이 UI에서 바로 호출하는 편이 단순하다. service worker는 패널 오픈 설정만 담당한다.
 
 **서버 0 · 고정비 0.** 각 사용자가 자기 API 키를 넣고(BYOK), 자기 토큰 비용만 부담. 개인용·포트폴리오 목적에 최적.
 

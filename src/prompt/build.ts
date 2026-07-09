@@ -6,9 +6,10 @@ import { MODE_FORMULAS, MODES, type Mode } from './modes'
 // mode === 특정 모드  → 그 모드 공식만 주입 (MVP 2단계: 적용 모드 고정)
 // mode === 'auto'     → 모델이 스스로 판별 + 4개 공식 모두 제공 (6단계)
 //
-// skeleton은 설정 화면에서 사용자가 덮어쓴 값이 있으면 그걸 넘겨받는다.
+// language: 질문·힌트를 출력할 언어 (UI에서 선택한 언어). 글 본문 언어와 무관하게 이 언어로 쓴다.
 export function buildSystemPrompt(
   mode: Mode | 'auto',
+  language: string,
   skeleton: string = DEFAULT_SKELETON,
 ): string {
   let modeSection: string
@@ -35,12 +36,16 @@ ${allFormulas}`
 ${MODE_FORMULAS[mode]}`
   }
 
-  return skeleton.replace('{{MODE_SECTION}}', modeSection)
+  return skeleton.replace('{{MODE_SECTION}}', modeSection).replace('{{LANGUAGE}}', language)
 }
 
 // 실제 API에 보낼 user 메시지: 본문 텍스트.
+// 본문·선택 영역의 최대 글자 수. 이 값을 넘는 선택은 거부하고,
+// 선택 없이 추출한 전체 본문은 앞부분만 잘라 보낸다. (토큰 절약)
+export const MAX_ARTICLE_CHARS = 12000
+
 // (본문이 너무 길면 앞부분만 — 토큰 절약. 임계값은 튜닝 대상)
-export function buildUserMessage(articleText: string, maxChars = 12000): string {
+export function buildUserMessage(articleText: string, maxChars = MAX_ARTICLE_CHARS): string {
   const trimmed =
     articleText.length > maxChars
       ? articleText.slice(0, maxChars) + '\n\n...(이하 생략)'
