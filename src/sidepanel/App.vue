@@ -321,8 +321,6 @@ function revealHint(qIndex: number) {
           <span v-if="anchorNotFound[i]" class="not-found">{{ t.notFoundInSource }}</span>
         </div>
       </article>
-
-      <p class="reflect">{{ t.reflect }}</p>
     </div>
   </section>
 </template>
@@ -529,17 +527,5 @@ button.link:hover {
 .not-found {
   font-size: 12px;
   color: var(--muted);
-}
-
-.reflect {
-  text-align: center;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--accent-strong);
-  background: var(--accent-soft);
-  border: 1px dashed var(--accent-line);
-  border-radius: var(--radius);
-  padding: 14px;
-  margin-top: 4px;
 }
 </style>
