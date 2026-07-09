@@ -54,7 +54,48 @@ declare global {
 if (!window.__recheckContentReady) {
   window.__recheckContentReady = true
 
+  // ::highlight() 렌더용 스타일 1회 주입 (본문 DOM은 건드리지 않음)
+  const highlightStyle = document.createElement('style')
+  highlightStyle.textContent = `::highlight(recheck-anchor){ background-color:#fde047; color:inherit; }`
+  document.head.appendChild(highlightStyle)
+
+  let highlightTimer: number | undefined
+
+  // anchor 구절을 찾아 스크롤 + 노란 하이라이트(3초). 성공 시 true.
+  function highlightAnchor(query: string): boolean {
+    const text = query.trim()
+    if (!text) return false
+
+    const selection = window.getSelection()
+    selection?.removeAllRanges()
+    // window.find: 렌더 텍스트에서 매칭 + 화면으로 스크롤 (Chrome 지원)
+    const found = (window as unknown as { find: (...args: unknown[]) => boolean }).find(
+      text, false, false, true, false, false, false,
+    )
+    if (!found) return false
+
+    const range =
+      selection && selection.rangeCount > 0 ? selection.getRangeAt(0).cloneRange() : null
+    selection?.removeAllRanges()
+    if (!range) return true // 스크롤은 됐으나 range 확보 실패 — 하이라이트만 생략
+
+    const cssHighlights = (CSS as unknown as { highlights?: Map<string, unknown> }).highlights
+    const HighlightCtor = (window as unknown as { Highlight?: new (r: Range) => unknown }).Highlight
+    if (!cssHighlights || !HighlightCtor) return true // 하이라이트 미지원 → 스크롤만
+
+    cssHighlights.set('recheck-anchor', new HighlightCtor(range))
+    if (highlightTimer) clearTimeout(highlightTimer)
+    highlightTimer = window.setTimeout(() => cssHighlights.delete('recheck-anchor'), 3000)
+    return true
+  }
+
   chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+    // 특정 구절로 스크롤 + 하이라이트
+    if (msg?.type === 'SCROLL_TO') {
+      sendResponse({ found: highlightAnchor(String(msg.text ?? '')) })
+      return
+    }
+
     // 드래그 안 했을 때 보여줄 "본문 전체 글자수" 조회. (선택과 무관)
     if (msg?.type === 'ARTICLE_INFO') {
       try {
