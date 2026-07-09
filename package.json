@@ -1,0 +1,25 @@
+{
+  "name": "recheck-extension",
+  "version": "0.0.1",
+  "description": "읽은 글에 대해 스스로 이해를 되짚게 만드는 크롬 확장. AI는 정답을 주지 않고 질문과 힌트만 던진다.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "build:nocheck": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@mozilla/readability": "^0.6.0",
+    "vue": "^3.5.39"
+  },
+  "devDependencies": {
+    "@crxjs/vite-plugin": "^2.7.1",
+    "@types/chrome": "^0.0.287",
+    "@vitejs/plugin-vue": "^6.0.7",
+    "typescript": "^5.6.0",
+    "vite": "^8.1.3",
+    "vue-tsc": "^2.1.0"
+  }
+}

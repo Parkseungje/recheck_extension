@@ -1,0 +1,19 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+*.local
+
+# ⚠️ 절대 커밋 금지: API 키가 담길 수 있는 파일
+.env
+.env.*
+*.key
+secrets.*
+
+# editor / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+*.log
