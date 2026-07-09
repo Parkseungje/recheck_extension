@@ -6,8 +6,24 @@ export default defineManifest({
   version: '0.0.1',
   description: '읽은 글을 스스로 되짚게 만드는 확장. AI는 정답을 주지 않고 질문·힌트만 던진다.',
 
+  // 확장 아이콘 (툴바·확장관리·웹스토어). public/icons → dist/icons 로 복사됨.
+  icons: {
+    16: 'icons/icon16.png',
+    32: 'icons/icon32.png',
+    48: 'icons/icon48.png',
+    128: 'icons/icon128.png',
+  },
+
   // 툴바 아이콘 클릭 → 사이드패널 오픈 (동작은 service-worker에서 설정)
-  action: { default_title: 'ReCheck 열기' },
+  action: {
+    default_title: 'ReCheck 열기',
+    default_icon: {
+      16: 'icons/icon16.png',
+      32: 'icons/icon32.png',
+      48: 'icons/icon48.png',
+      128: 'icons/icon128.png',
+    },
+  },
 
   background: {
     service_worker: 'src/background/service-worker.ts',

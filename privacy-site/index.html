@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ReCheck — Privacy Policy</title>
+    <meta
+      name="description"
+      content="ReCheck privacy policy. ReCheck runs entirely in your browser. It has no server and collects none of your data."
+    />
+    <style>
+      :root {
+        --teal: #0d9488;
+        --teal-strong: #0f766e;
+        --ink: #0e2a28;
+        --muted: #4f6d6b;
+        --line: #dbe7e7;
+        --soft: #e6f5f2;
+        --bg: #eef4f5;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Apple SD Gothic Neo',
+          'Noto Sans KR', sans-serif;
+        color: var(--ink);
+        line-height: 1.65;
+        background: radial-gradient(120% 40% at 50% 0%, #f4faf9 0%, var(--bg) 60%);
+      }
+      .wrap { max-width: 760px; margin: 0 auto; padding: 40px 22px 80px; }
+      header { display: flex; align-items: center; gap: 14px; margin-bottom: 8px; }
+      .logo { width: 52px; height: 52px; border-radius: 13px; flex: none; }
+      h1 { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; margin: 0; }
+      .mark { color: var(--teal); }
+      .updated { color: var(--muted); font-size: 14px; margin: 2px 0 26px; }
+      .lede {
+        background: var(--soft); border: 1px solid #b7e6de; border-radius: 14px;
+        padding: 16px 18px; font-size: 15.5px; color: var(--teal-strong); font-weight: 500;
+        margin-bottom: 34px;
+      }
+      h2 {
+        font-size: 19px; font-weight: 700; margin: 34px 0 8px;
+        padding-top: 18px; border-top: 1px solid var(--line);
+      }
+      h2:first-of-type { border-top: none; padding-top: 0; }
+      p, li { font-size: 15.5px; color: #23423f; }
+      a { color: var(--teal); }
+      ul { padding-left: 20px; }
+      code {
+        background: var(--soft); color: var(--teal-strong); padding: 1px 6px;
+        border-radius: 5px; font-size: 13.5px;
+      }
+      .lang-divider {
+        margin: 56px 0 0; text-align: center; color: var(--muted); font-size: 13px;
+        letter-spacing: 0.08em; text-transform: uppercase;
+      }
+      footer { margin-top: 40px; color: var(--muted); font-size: 13px; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <svg class="logo" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <defs>
+            <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#5eead4" /><stop offset="0.5" stop-color="#14b8a6" /><stop offset="1" stop-color="#0b7d70" />
+            </linearGradient>
+          </defs>
+          <rect width="128" height="128" rx="29" fill="url(#g)" />
+          <g fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="52" cy="52" r="30" stroke-width="10" />
+            <path d="M39 53 l9 10 l17 -21" stroke-width="9" />
+            <line x1="74" y1="74" x2="99" y2="99" stroke-width="14" />
+          </g>
+        </svg>
+        <h1><span class="mark">Re</span>Check — Privacy Policy</h1>
+      </header>
+      <p class="updated">Last updated: July 9, 2026</p>
+
+      <p class="lede">
+        ReCheck runs entirely in your browser. It has <strong>no server</strong>, and the developer
+        collects <strong>none</strong> of your data — no analytics, no tracking, no ads.
+      </p>
+
+      <h2>1. What ReCheck stores</h2>
+      <p>
+        ReCheck saves the following in <code>chrome.storage.local</code> — on your device only:
+      </p>
+      <ul>
+        <li>Your AI provider API key</li>
+        <li>Your settings: chosen provider, model, interface language, and number of questions</li>
+      </ul>
+      <p>This never leaves your browser and is never sent to the developer.</p>
+
+      <h2>2. What is sent, and to whom</h2>
+      <p>
+        When you click the “re-check” button, the text of the current page (or the portion you
+        selected) is sent <strong>directly from your browser</strong> to the AI provider you chose,
+        using your own API key. The developer operates no intermediary server and never sees this
+        data.
+      </p>
+      <p>The provider you select handles that request under its own privacy policy:</p>
+      <ul>
+        <li>Anthropic (Claude): <a href="https://www.anthropic.com/legal/privacy">anthropic.com/legal/privacy</a></li>
+        <li>OpenAI (GPT): <a href="https://openai.com/policies/privacy-policy">openai.com/policies/privacy-policy</a></li>
+        <li>Google (Gemini): <a href="https://policies.google.com/privacy">policies.google.com/privacy</a></li>
+      </ul>
+
+      <h2>3. Page access</h2>
+      <p>
+        ReCheck reads the current page’s text <strong>only when you trigger it</strong> (by clicking
+        the button or dragging a selection). It does not read or transmit page content automatically
+        or in the background.
+      </p>
+
+      <h2>4. What the developer collects</h2>
+      <p>
+        Nothing. There is no server, no database, no analytics, and no third-party trackers. The
+        developer cannot see your API key, the pages you read, or the questions generated.
+      </p>
+
+      <h2>5. Data retention and deletion</h2>
+      <p>
+        Your key and settings remain in your browser until you clear them in the extension, clear
+        your browser data, or remove the extension. Removing the extension deletes them.
+      </p>
+
+      <h2>6. Children</h2>
+      <p>ReCheck is a general-audience tool and is not directed at children under 13.</p>
+
+      <h2>7. Changes</h2>
+      <p>
+        If this policy changes, the “Last updated” date above will change. Material changes will be
+        reflected here before they take effect.
+      </p>
+
+      <h2>8. Contact</h2>
+      <p>Questions about this policy: <a href="mailto:tmdwprpdla@naver.com">tmdwprpdla@naver.com</a></p>
+
+      <p class="lang-divider">한국어</p>
+
+      <h2>1. ReCheck가 저장하는 것</h2>
+      <p>ReCheck는 아래 항목을 <code>chrome.storage.local</code>(사용자 기기)에만 저장합니다:</p>
+      <ul>
+        <li>AI 제공자 API 키</li>
+        <li>설정값: 선택한 제공자·모델·UI 언어·질문 수</li>
+      </ul>
+      <p>이 값은 브라우저를 벗어나지 않으며 개발자에게 전송되지 않습니다.</p>
+
+      <h2>2. 무엇이, 누구에게 전송되나</h2>
+      <p>
+        “다시 짚어보기” 버튼을 누르면 현재 페이지의 본문(또는 선택한 부분)이 사용자의 API 키와 함께
+        <strong>브라우저에서 직접</strong> 선택한 AI 제공자에게 전송됩니다. 개발자는 중계 서버를 두지 않으며 이
+        데이터를 볼 수 없습니다. 선택한 제공자는 각자의 개인정보 처리방침(위 링크)에 따라 처리합니다.
+      </p>
+
+      <h2>3. 페이지 접근</h2>
+      <p>
+        ReCheck는 <strong>사용자가 실행할 때만</strong>(버튼 클릭 또는 드래그 선택 시) 현재 페이지의 텍스트를
+        읽습니다. 자동으로 또는 백그라운드에서 페이지 내용을 읽거나 전송하지 않습니다.
+      </p>
+
+      <h2>4. 개발자가 수집하는 것</h2>
+      <p>
+        없습니다. 서버·데이터베이스·분석 도구·제3자 추적기가 전혀 없습니다. 개발자는 사용자의 API 키, 읽은
+        페이지, 생성된 질문을 볼 수 없습니다.
+      </p>
+
+      <h2>5. 데이터 보관 및 삭제</h2>
+      <p>
+        키와 설정은 사용자가 확장에서 지우거나, 브라우저 데이터를 삭제하거나, 확장을 제거할 때까지 브라우저에
+        남습니다. 확장을 제거하면 함께 삭제됩니다.
+      </p>
+
+      <h2>6. 아동</h2>
+      <p>ReCheck는 일반 사용자용 도구이며 만 13세 미만 아동을 대상으로 하지 않습니다.</p>
+
+      <h2>7. 변경</h2>
+      <p>정책이 바뀌면 상단의 “Last updated” 날짜가 변경됩니다.</p>
+
+      <h2>8. 문의</h2>
+      <p>정책 관련 문의: <a href="mailto:tmdwprpdla@naver.com">tmdwprpdla@naver.com</a></p>
+
+      <footer>© 2026 ReCheck</footer>
+    </div>
+  </body>
+</html>
