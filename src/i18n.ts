@@ -62,6 +62,8 @@ export interface Messages {
   revealFirst: string
   revealMore: string
   reflect: string
+  openInSource: string
+  notFoundInSource: string
 }
 
 export const MESSAGES: Record<Locale, Messages> = {
@@ -97,6 +99,8 @@ export const MESSAGES: Record<Locale, Messages> = {
     revealFirst: "Show a hint if you're stuck",
     revealMore: 'Show another hint',
     reflect: "✍️ If you've written an answer — read what you just wrote again.",
+    openInSource: 'View in the article',
+    notFoundInSource: "Couldn't find it in the article",
   },
   'zh-CN': {
     settings: '设置',
@@ -129,6 +133,8 @@ export const MESSAGES: Record<Locale, Messages> = {
     revealFirst: '卡住时查看提示',
     revealMore: '查看更多提示',
     reflect: '✍️ 写下答案后 —— 再读一遍你刚写的内容。',
+    openInSource: '在原文中查看',
+    notFoundInSource: '未在原文中找到',
   },
   'zh-TW': {
     settings: '設定',
@@ -161,6 +167,8 @@ export const MESSAGES: Record<Locale, Messages> = {
     revealFirst: '卡住時查看提示',
     revealMore: '查看更多提示',
     reflect: '✍️ 寫下答案後 —— 再讀一次你剛寫的內容。',
+    openInSource: '在原文中檢視',
+    notFoundInSource: '在原文中找不到',
   },
   ja: {
     settings: '設定',
@@ -194,6 +202,8 @@ export const MESSAGES: Record<Locale, Messages> = {
     revealFirst: '行き詰まったらヒントを見る',
     revealMore: 'ヒントをもっと見る',
     reflect: '✍️ 答えを書いたら、いま書いた答えをもう一度読んでみよう。',
+    openInSource: '本文で確認',
+    notFoundInSource: '本文で見つかりませんでした',
   },
   ko: {
     settings: '설정',
@@ -226,6 +236,8 @@ export const MESSAGES: Record<Locale, Messages> = {
     revealFirst: '막히면 힌트 보기',
     revealMore: '힌트 더 보기',
     reflect: '✍️ 답을 써봤다면 — 방금 네가 쓴 답을 다시 읽어봐.',
+    openInSource: '원문에서 확인',
+    notFoundInSource: '원문에서 못 찾음',
   },
   fr: {
     settings: 'Paramètres',
@@ -260,6 +272,8 @@ export const MESSAGES: Record<Locale, Messages> = {
     revealFirst: 'Afficher un indice si vous êtes bloqué',
     revealMore: 'Afficher un autre indice',
     reflect: "✍️ Si vous avez écrit une réponse — relisez ce que vous venez d'écrire.",
+    openInSource: "Voir dans l'article",
+    notFoundInSource: "Introuvable dans l'article",
   },
   es: {
     settings: 'Ajustes',
@@ -294,6 +308,8 @@ export const MESSAGES: Record<Locale, Messages> = {
     revealFirst: 'Ver una pista si te atascas',
     revealMore: 'Ver otra pista',
     reflect: '✍️ Si has escrito una respuesta, vuelve a leer lo que acabas de escribir.',
+    openInSource: 'Ver en el artículo',
+    notFoundInSource: 'No se encontró en el artículo',
   },
   ru: {
     settings: 'Настройки',
@@ -328,5 +344,7 @@ export const MESSAGES: Record<Locale, Messages> = {
     revealFirst: 'Показать подсказку, если застряли',
     revealMore: 'Показать ещё подсказку',
     reflect: '✍️ Если вы записали ответ — перечитайте то, что только что написали.',
+    openInSource: 'Показать в статье',
+    notFoundInSource: 'Не найдено в статье',
   },
 }

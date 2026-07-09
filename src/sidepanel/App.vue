@@ -107,6 +107,23 @@ const result = ref<QuestionSet | null>(null)
 const articleTitle = ref('')
 // 각 질문마다 열린 힌트 개수
 const openHints = reactive<Record<number, number>>({})
+// "원문에서 확인" 결과: 못 찾은 질문 인덱스 표시
+const anchorNotFound = reactive<Record<number, boolean>>({})
+
+async function openInSource(qIndex: number, anchor: string) {
+  anchorNotFound[qIndex] = false
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+  if (!tab?.id) {
+    anchorNotFound[qIndex] = true
+    return
+  }
+  try {
+    const res = await chrome.tabs.sendMessage(tab.id, { type: 'SCROLL_TO', text: anchor })
+    anchorNotFound[qIndex] = !res?.found
+  } catch {
+    anchorNotFound[qIndex] = true
+  }
+}
 
 async function extractArticle(): Promise<ExtractResult> {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
@@ -171,7 +188,10 @@ async function generate() {
 
     const parsed = parseQuestionSet(raw)
     result.value = parsed
-    parsed.questions.forEach((_, i) => (openHints[i] = 0))
+    parsed.questions.forEach((_, i) => {
+      openHints[i] = 0
+      anchorNotFound[i] = false
+    })
   } catch (e: any) {
     errorMsg.value = e?.message ?? t.value.unknownError
   } finally {
@@ -280,6 +300,10 @@ function revealHint(qIndex: number) {
           ({{ openHints[i] ?? 0 }}/{{ q.hints.length }})
         </button>
 
+        <div v-if="q.anchor" class="source-row">
+          <button class="link" @click="openInSource(i, q.anchor)">📄 {{ t.openInSource }}</button>
+          <span v-if="anchorNotFound[i]" class="not-found">{{ t.notFoundInSource }}</span>
+        </div>
       </article>
 
       <p class="reflect">{{ t.reflect }}</p>
@@ -398,10 +422,13 @@ button.link {
   margin: 6px 0;
   font-size: 13px;
 }
-.pointer {
-  font-size: 13px;
+.source-row {
+  margin-top: 8px;
+}
+.not-found {
+  font-size: 12px;
   color: var(--muted);
-  margin: 6px 0 0;
+  margin-left: 8px;
 }
 .reflect {
   text-align: center;
