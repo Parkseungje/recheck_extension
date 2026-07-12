@@ -1,6 +1,6 @@
-<script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue'
-import { getProvider, parseQuestionSet, type ProviderId, type QuestionSet } from '../providers'
+﻿<script setup lang="ts">
+import { ref, reactive, onMounted, onUnmounted, computed } from 'vue'
+import { getProvider, parseQuestionSet, type ProviderId, type Question, type QuestionSet } from '../providers'
 import { buildSystemPrompt, buildUserMessage, MAX_ARTICLE_CHARS } from '../prompt/build'
 import type { ExtractResult } from '../content/extract'
 import { LOCALES, DEFAULT_LOCALE, MESSAGES, LANGUAGE_NAMES, type Locale } from '../i18n'
@@ -17,54 +17,288 @@ const showSettings = ref(true)
 // ---- UI 언어 ----
 const locale = ref<Locale>(DEFAULT_LOCALE)
 const t = computed(() => MESSAGES[locale.value])
-// 언어는 바꾸는 즉시 저장 (저장 버튼과 무관하게 바로 유지)
+// 언어는 바꾸는 즉시 저장한다.
 function persistLocale() {
   chrome.storage.local.set({ locale: locale.value })
 }
 
 const providerObj = computed(() => getProvider(settings.provider))
 
-// content script가 실시간으로 보내주는 현재 페이지의 선택 글자수.
-// 0이면 선택 없음 → 카운터 숨김.
+// 현재 페이지의 선택 글자수. 0이면 선택 없음으로 보고 카운터를 숨긴다.
 const selectionLength = ref(0)
-chrome.runtime.onMessage.addListener((msg) => {
-  if (msg?.type === 'SELECTION_LENGTH') selectionLength.value = msg.length
-})
+let selectionPollTimer: number | undefined
 
-// 드래그 안 했을 때 보여줄 현재 페이지 본문 전체 글자수. (선택이 있으면 선택 카운터가 우선)
+function originPatternFromUrl(url: string): string | null {
+  try {
+    const parsed = new URL(url)
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null
+    return `${parsed.origin}/*`
+  } catch {
+    return null
+  }
+}
+
+async function requestHostAccess(tabUrl: string): Promise<boolean> {
+  if (!originPatternFromUrl(tabUrl)) {
+    return false
+  }
+
+  const origins = ['http://*/*', 'https://*/*']
+  const alreadyGranted = await chrome.permissions.contains({ origins })
+  if (alreadyGranted) return true
+
+  const granted = await chrome.permissions.request({ origins })
+  return granted
+}
+
+async function executeInActiveTabInternal<T, Args extends unknown[]>(
+  func: (...args: Args) => T,
+  requestPermissionOnFailure: boolean,
+  ...args: Args
+): Promise<T | null> {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+  if (!tab?.id) {
+    return null
+  }
+  if (!/^https?:/.test(tab.url ?? '')) {
+    return null
+  }
+  const tabId = tab.id
+  const tabUrl = tab.url ?? ''
+
+  const runScript = async (): Promise<T | null> => {
+    const [result] = await chrome.scripting.executeScript({
+      target: { tabId },
+      func,
+      args,
+    })
+    return (result?.result as T | undefined) ?? null
+  }
+
+  try {
+    const result = await runScript()
+    return result
+  } catch (err) {
+    if (requestPermissionOnFailure && await requestHostAccess(tabUrl)) {
+      try {
+        const result = await runScript()
+        return result
+      } catch (retryErr) {
+        throw retryErr
+      }
+    }
+
+    throw err
+  }
+}
+
+async function executeInActiveTab<T, Args extends unknown[]>(
+  func: (...args: Args) => T,
+  ...args: Args
+): Promise<T | null> {
+  return executeInActiveTabInternal(func, false, ...args)
+}
+
+async function executeInActiveTabWithPermission<T, Args extends unknown[]>(
+  func: (...args: Args) => T,
+  ...args: Args
+): Promise<T | null> {
+  return executeInActiveTabInternal(func, true, ...args)
+}
+
+function getSelectionLengthFromPage(): number {
+  return window.getSelection()?.toString().trim().length ?? 0
+}
+
+function getArticleLengthFromPage(): number {
+  const container: HTMLElement =
+    (document.querySelector('main') as HTMLElement | null) ??
+    (document.querySelector('article') as HTMLElement | null) ??
+    (document.querySelector('[role="main"]') as HTMLElement | null) ??
+    document.body
+  return (container.innerText ?? container.textContent ?? '').trim().length
+}
+
+function extractArticleFromPage(): ExtractResult {
+  try {
+    function extractBody(): { title: string; text: string } {
+      const container: HTMLElement =
+        (document.querySelector('main') as HTMLElement | null) ??
+        (document.querySelector('article') as HTMLElement | null) ??
+        (document.querySelector('[role="main"]') as HTMLElement | null) ??
+        document.body
+      return {
+        title: document.title,
+        text: (container.innerText ?? container.textContent ?? '').trim(),
+      }
+    }
+
+    const selected = window.getSelection()?.toString().trim() ?? ''
+    if (selected) {
+      return {
+        ok: true,
+        title: document.title,
+        text: selected,
+        url: location.href,
+        isSelection: true,
+      }
+    }
+
+    const body = extractBody()
+    if (!body.text) return { ok: false, code: 'NO_ARTICLE' }
+
+    return {
+      ok: true,
+      title: body.title,
+      text: body.text,
+      url: location.href,
+    }
+  } catch {
+    return { ok: false, code: 'EXTRACT_ERROR' }
+  }
+}
+
+function scrollToAnchorFromPage(query: string): boolean {
+  function ensureHighlightStyle(): void {
+    if (document.getElementById('recheck-anchor-style')) return
+    const style = document.createElement('style')
+    style.id = 'recheck-anchor-style'
+    style.textContent = `::highlight(recheck-anchor){ background-color:#fde047; color:inherit; }`
+    document.head.appendChild(style)
+  }
+
+  function applyHighlight(range: Range): void {
+    ensureHighlightStyle()
+    const cssHighlights = (CSS as unknown as { highlights?: Map<string, unknown> }).highlights
+    const HighlightCtor = (window as unknown as { Highlight?: new (r: Range) => unknown }).Highlight
+    if (!cssHighlights || !HighlightCtor) {
+      const selection = window.getSelection()
+      selection?.removeAllRanges()
+      selection?.addRange(range)
+      window.setTimeout(() => selection?.removeAllRanges(), 3000)
+      return
+    }
+    cssHighlights.set('recheck-anchor', new HighlightCtor(range))
+    window.setTimeout(() => cssHighlights.delete('recheck-anchor'), 3000)
+  }
+
+  function scrollToRange(range: Range): void {
+    const rect = range.getBoundingClientRect()
+    if (rect.width === 0 && rect.height === 0) {
+      range.startContainer.parentElement?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      return
+    }
+    window.scrollTo({ top: window.scrollY + rect.top - window.innerHeight / 2, behavior: 'smooth' })
+  }
+
+  function findRangeIgnoringWhitespace(text: string): Range | null {
+    const needle = text.replace(/\s+/g, '')
+    if (needle.length < 4) return null
+
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+      acceptNode(node) {
+        const parent = (node as Text).parentElement
+        if (!parent || parent.closest('script,style,noscript')) return NodeFilter.FILTER_REJECT
+        return NodeFilter.FILTER_ACCEPT
+      },
+    })
+
+    let compact = ''
+    const map: { node: Text; offset: number }[] = []
+    let node: Node | null
+    while ((node = walker.nextNode())) {
+      const data = (node as Text).data
+      for (let i = 0; i < data.length; i++) {
+        if (/\s/.test(data[i])) continue
+        compact += data[i]
+        map.push({ node: node as Text, offset: i })
+      }
+    }
+
+    const idx = compact.indexOf(needle)
+    if (idx === -1) return null
+    const start = map[idx]
+    const end = map[idx + needle.length - 1]
+    if (!start || !end) return null
+
+    const range = document.createRange()
+    range.setStart(start.node, start.offset)
+    range.setEnd(end.node, end.offset + 1)
+    return range
+  }
+
+  const text = query.trim()
+  if (!text) return false
+
+  const selection = window.getSelection()
+  selection?.removeAllRanges()
+  const found = (window as unknown as { find: (...args: unknown[]) => boolean }).find(
+    text, false, false, true, false, false, false,
+  )
+  if (found) {
+    const range = selection && selection.rangeCount > 0 ? selection.getRangeAt(0).cloneRange() : null
+    selection?.removeAllRanges()
+    if (range) {
+      scrollToRange(range)
+      applyHighlight(range)
+    }
+    return true
+  }
+  selection?.removeAllRanges()
+
+  const range = findRangeIgnoringWhitespace(text)
+  if (!range) return false
+  scrollToRange(range)
+  applyHighlight(range)
+  return true
+}
+
+function canFindAnchorInPage(query: string): boolean {
+  const needle = query.trim().replace(/\s+/g, '')
+  if (needle.length < 4) return false
+
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      const parent = (node as Text).parentElement
+      if (!parent || parent.closest('script,style,noscript')) return NodeFilter.FILTER_REJECT
+      return NodeFilter.FILTER_ACCEPT
+    },
+  })
+
+  let compact = ''
+  let node: Node | null
+  while ((node = walker.nextNode())) {
+    compact += (node as Text).data.replace(/\s+/g, '')
+    if (compact.includes(needle)) return true
+    if (compact.length > needle.length * 4) compact = compact.slice(-needle.length * 2)
+  }
+
+  return false
+}
+
+// 드래그 선택이 없을 때 보여줄 현재 페이지 본문 전체 글자수.
 const articleLength = ref(0)
 async function fetchArticleLength() {
   try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
-    if (!tab?.id) return
-    const info = await chrome.tabs.sendMessage(tab.id, { type: 'ARTICLE_INFO' })
-    articleLength.value = info?.length ?? 0
+    articleLength.value = (await executeInActiveTab(getArticleLengthFromPage)) ?? 0
   } catch {
     articleLength.value = 0
   }
 }
 
-// 이미 열려 있던 탭은 확장 설치·업데이트 후 content script가 자동 주입되지 않는다.
-// 패널이 열릴 때 활성 탭에 직접 주입해, 페이지 새로고침 없이도 선택 카운터가 뜨게 한다.
-// (content script의 중복 주입 가드가 있어 이미 주입된 경우엔 아무 일도 하지 않는다.)
-async function ensureContentScript() {
+// 패널이 열린 동안 activeTab 권한으로 활성 탭의 현재 선택 상태를 읽는다.
+async function fetchSelectionLength() {
   try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
-    if (!tab?.id || !/^https?:/.test(tab.url ?? '')) return
-    const files = chrome.runtime.getManifest().content_scripts?.[0]?.js ?? []
-    if (files.length) {
-      await chrome.scripting.executeScript({ target: { tabId: tab.id }, files })
-    }
+    selectionLength.value = (await executeInActiveTab(getSelectionLengthFromPage)) ?? 0
   } catch {
-    // chrome:// 등 주입 불가 페이지이거나 이미 주입됨 — 무시
+    selectionLength.value = 0
   }
 }
 
-// 패널은 탭을 바꿔도 그대로 열려 있으므로, onMounted 한 번으론 부족하다.
-// 활성 탭 전환·새 페이지 로드마다 그 탭 기준으로 다시 계산한다.
+// 패널은 탭을 바꿔도 그대로 열려 있으므로 활성 탭 기준으로 다시 계산한다.
 async function refreshForActiveTab() {
   selectionLength.value = 0 // 이전 탭의 선택 글자수 초기화
-  await ensureContentScript()
+  await fetchSelectionLength()
   fetchArticleLength()
 }
 
@@ -75,6 +309,7 @@ chrome.tabs.onUpdated.addListener((_tabId, info, tab) => {
 
 onMounted(async () => {
   refreshForActiveTab()
+  selectionPollTimer = window.setInterval(fetchSelectionLength, 700)
   const saved = await chrome.storage.local.get([
     'provider',
     'model',
@@ -90,6 +325,10 @@ onMounted(async () => {
     showSettings.value = false
   }
   settings.model = saved.model || providerObj.value.defaultModel
+})
+
+onUnmounted(() => {
+  if (selectionPollTimer) window.clearInterval(selectionPollTimer)
 })
 
 async function saveSettings() {
@@ -121,30 +360,23 @@ const anchorNotFound = reactive<Record<number, boolean>>({})
 
 async function openInSource(qIndex: number, anchor: string) {
   anchorNotFound[qIndex] = false
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
-  if (!tab?.id) {
-    anchorNotFound[qIndex] = true
-    return
-  }
   try {
-    const res = await chrome.tabs.sendMessage(tab.id, { type: 'SCROLL_TO', text: anchor })
-    anchorNotFound[qIndex] = !res?.found
+    const found = await executeInActiveTabWithPermission(scrollToAnchorFromPage, anchor)
+    anchorNotFound[qIndex] = !found
   } catch {
     anchorNotFound[qIndex] = true
   }
 }
 
 async function extractArticle(): Promise<ExtractResult> {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
-  if (!tab?.id) return { ok: false, code: 'NO_ACTIVE_TAB' }
   try {
-    return await chrome.tabs.sendMessage(tab.id, { type: 'EXTRACT' })
+    return (await executeInActiveTabWithPermission(extractArticleFromPage)) ?? { ok: false, code: 'NO_ACTIVE_TAB' }
   } catch {
     return { ok: false, code: 'CANT_READ' }
   }
 }
 
-// 추출 실패 코드를 현재 언어의 메시지로 변환.
+// 추출 실패 코드를 현재 언어의 메시지로 변환한다.
 function extractErrorMessage(article: ExtractResult): string {
   switch (article.code) {
     case 'NO_ACTIVE_TAB':
@@ -158,6 +390,65 @@ function extractErrorMessage(article: ExtractResult): string {
     default:
       return t.value.extractFailed
   }
+}
+
+function isDuplicateQuestion(next: Question, current: Question[]): boolean {
+  const key = `${next.question}\n${next.anchor}`.replace(/\s+/g, '')
+  return current.some((q) => `${q.question}\n${q.anchor}`.replace(/\s+/g, '') === key)
+}
+
+async function filterFindableQuestions(questions: Question[]): Promise<Question[]> {
+  const checked = await Promise.all(
+    questions.map(async (q) => {
+      if (!q.anchor.trim()) return null
+      try {
+        const found = await executeInActiveTabWithPermission(canFindAnchorInPage, q.anchor)
+        return found ? q : null
+      } catch {
+        return null
+      }
+    }),
+  )
+  return checked.filter((q): q is Question => q !== null)
+}
+
+async function generateFindableQuestionSet(articleText: string): Promise<QuestionSet> {
+  const targetCount = settings.questionCount
+  const maxAttempts = 2
+  const collected: Question[] = []
+  let mode = ''
+
+  for (let attempt = 0; attempt < maxAttempts && collected.length < targetCount; attempt++) {
+    const missingCount = targetCount - collected.length
+    const systemPrompt = buildSystemPrompt('auto', LANGUAGE_NAMES[locale.value], missingCount)
+    const userMessage = buildUserMessage(articleText)
+
+    const raw = await providerObj.value.complete({
+      apiKey: settings.apiKey,
+      model: settings.model,
+      systemPrompt,
+      userMessage,
+    })
+
+    const parsed = parseQuestionSet(raw, missingCount)
+    if (!mode) mode = parsed.mode
+
+    const validQuestions = await filterFindableQuestions(parsed.questions)
+    for (const q of validQuestions) {
+      if (collected.length >= targetCount) break
+      if (!isDuplicateQuestion(q, collected)) collected.push(q)
+    }
+  }
+
+  if (!collected.length) {
+    throw new Error('원문에서 확인 가능한 질문을 만들지 못했습니다. 다시 생성해 주세요.')
+  }
+
+  if (collected.length < targetCount) {
+    errorMsg.value = `${targetCount}문제 중 ${collected.length}문제만 원문에서 확인 가능한 질문으로 만들었습니다.`
+  }
+
+  return { mode: mode || 'auto', questions: collected }
 }
 
 async function generate() {
@@ -175,27 +466,18 @@ async function generate() {
     if (!article.ok || !article.text) {
       throw new Error(extractErrorMessage(article))
     }
-    // 드래그로 고른 영역은 잘라 보내지 않는다 — 너무 길면 좁혀서 다시 선택하게 한다.
+    // 드래그로 고른 영역은 잘라 보내지 않는다. 너무 길면 다시 선택하게 한다.
     if (article.isSelection && article.text.length > MAX_ARTICLE_CHARS) {
       throw new Error(t.value.selectionTooLong(article.text.length, MAX_ARTICLE_CHARS))
     }
-    // 드래그 안 한 전체 본문이 제한을 넘으면 통째로 못 보낸다 — 드래그로만 가능.
+    // 선택이 없고 전체 본문이 제한을 넘으면 전송하지 않는다.
     if (!article.isSelection && article.text.length > MAX_ARTICLE_CHARS) {
-      throw new Error(t.value.articleTooLong(MAX_ARTICLE_CHARS))
+      errorMsg.value = ''
+      return
     }
     articleTitle.value = article.title || ''
 
-    const systemPrompt = buildSystemPrompt('auto', LANGUAGE_NAMES[locale.value], settings.questionCount)
-    const userMessage = buildUserMessage(article.text)
-
-    const raw = await providerObj.value.complete({
-      apiKey: settings.apiKey,
-      model: settings.model,
-      systemPrompt,
-      userMessage,
-    })
-
-    const parsed = parseQuestionSet(raw, settings.questionCount)
+    const parsed = await generateFindableQuestionSet(article.text)
     result.value = parsed
     parsed.questions.forEach((_, i) => {
       openHints[i] = 0
@@ -271,7 +553,7 @@ function revealHint(qIndex: number) {
     </button>
     <p class="hint-note">{{ t.dragHint }}</p>
 
-    <!-- 드래그하는 동안 선택 글자수 실시간 표시. 12,000자 넘으면 빨간색. -->
+    <!-- 드래그하는 동안 선택 글자수 표시. 12,000자를 넘으면 빨간색. -->
     <p
       v-if="selectionLength > 0"
       class="sel-count"
@@ -281,7 +563,7 @@ function revealHint(qIndex: number) {
       <template v-if="selectionLength > MAX_ARTICLE_CHARS">{{ t.narrowHint(MAX_ARTICLE_CHARS) }}</template>
     </p>
 
-    <!-- 드래그 안 했을 때: 본문 전체 글자수. 12,000자 초과면 통째 전송 불가 → 드래그 유도(빨강). -->
+    <!-- 드래그 선택이 없을 때 본문 전체 글자수 표시. 제한을 넘으면 드래그 선택을 유도한다. -->
     <p
       v-else-if="articleLength > 0"
       class="sel-count"
@@ -295,15 +577,14 @@ function revealHint(qIndex: number) {
 
     <!-- 결과 -->
     <div v-if="result">
-      <p class="mode-badge">{{ t.modeLabel }}: {{ result.mode }}</p>
-      <p v-if="articleTitle" class="article-title">📖 {{ articleTitle }}</p>
+      <p v-if="articleTitle" class="article-title"> {{ articleTitle }}</p>
 
       <article v-for="(q, i) in result.questions" :key="i" class="card question">
         <p class="q-text"><strong>Q{{ i + 1 }}.</strong> {{ q.question }}</p>
 
         <div v-if="openHints[i]" class="hints">
           <p v-for="(h, hi) in q.hints.slice(0, openHints[i])" :key="hi" class="hint">
-            💡 {{ h }}
+            {{ h }}
           </p>
         </div>
 
@@ -317,7 +598,7 @@ function revealHint(qIndex: number) {
         </button>
 
         <div v-if="q.anchor" class="source-row">
-          <button class="link" @click="openInSource(i, q.anchor)">📄 {{ t.openInSource }}</button>
+          <button class="link" @click="openInSource(i, q.anchor)">{{ t.openInSource }}</button>
           <span v-if="anchorNotFound[i]" class="not-found">{{ t.notFoundInSource }}</span>
         </div>
       </article>
@@ -389,7 +670,7 @@ input:focus {
   margin: 4px 0 14px;
 }
 
-/* 프라이머리 — 페이지의 유일한 볼드. 틸 그라디언트 + 소프트 글로우 */
+/* Primary action */
 button.primary {
   background: linear-gradient(135deg, #16b8a6 0%, var(--accent) 55%, var(--accent-strong) 100%);
   color: #fff;
@@ -445,7 +726,7 @@ button.link:hover {
   border-radius: 6px;
 }
 
-/* 글자수 카운터 — 쿨 틸(정상) / 레드(초과) */
+/* Character counters */
 .sel-count {
   font-size: 12px;
   font-weight: 600;

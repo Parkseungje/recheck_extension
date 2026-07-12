@@ -1,6 +1,18 @@
-// 툴바 아이콘을 클릭하면 현재 탭 옆에 사이드패널이 열리도록 설정.
+async function openSidePanel(tabId?: number): Promise<void> {
+  if (!tabId) return
+  try {
+    await chrome.sidePanel.open({ tabId })
+  } catch (err) {
+    console.error('sidePanel open failed:', err)
+  }
+}
+
 chrome.runtime.onInstalled.addListener(() => {
   chrome.sidePanel
-    .setPanelBehavior({ openPanelOnActionClick: true })
-    .catch((err) => console.error('sidePanel 설정 실패:', err))
+    .setPanelBehavior({ openPanelOnActionClick: false })
+    .catch((err) => console.error('sidePanel setup failed:', err))
+})
+
+chrome.action.onClicked.addListener((tab) => {
+  openSidePanel(tab.id)
 })

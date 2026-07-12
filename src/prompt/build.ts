@@ -1,13 +1,8 @@
 import { DEFAULT_SKELETON } from './skeleton'
 import { MODE_FORMULAS, MODES, type Mode } from './modes'
 
-// 프롬프트 조립기.
-//
-// mode === 특정 모드  → 그 모드 공식만 주입 (MVP 2단계: 적용 모드 고정)
-// mode === 'auto'     → 모델이 스스로 판별 + 4개 공식 모두 제공 (6단계)
-//
-// language: 질문·힌트를 출력할 언어 (UI에서 선택한 언어). 글 본문 언어와 무관하게 이 언어로 쓴다.
-// count: 생성할 질문 개수 (설정에서 선택, 기본 2).
+export const MAX_ARTICLE_CHARS = 12000
+
 export function buildSystemPrompt(
   mode: Mode | 'auto',
   language: string,
@@ -18,22 +13,24 @@ export function buildSystemPrompt(
 
   if (mode === 'auto') {
     const allFormulas = MODES.map((m) => MODE_FORMULAS[m]).join('\n\n')
-    modeSection = `# 1단계 — 모드 판별
-먼저 이 글을 읽은 독자의 목적이 아래 4가지 중 무엇에 가장 가까운지
-판단하라. 판단한 모드를 출력 JSON의 mode 필드에 넣어라.
-- 적용: 배워서 써먹는 글 (기술·개념·튜토리얼·방법론·레시피)
-- 검증: 사실을 전달하는 글 (뉴스·보도·발표)
-- 논증: 설득하려는 글 (칼럼·사설·주장)
-- 소화: 읽고 음미하는 글 (에세이·교양·서사)
+    modeSection = `# 1단계: 모드 판별
+먼저 사용자가 읽은 글의 목적이 아래 4가지 중 어디에 가장 가까운지 판단한다.
+판단한 모드는 출력 JSON의 mode 필드에 넣는다.
 
-# 2단계 — 질문 생성
-판별한 모드에 해당하는 아래 공식에 따라 질문 ${count}개를 만든다.
+- 적용: 배운 것을 써먹으려는 글. 기술, 개념, 튜토리얼, 방법론.
+- 검증: 사실을 판단하려는 글. 뉴스, 보도, 발표.
+- 논증: 설득하려는 글. 칼럼, 사설, 주장.
+- 소화: 읽고 따라가야 하는 글. 에세이, 교양, 서사.
+
+# 2단계: 질문 생성
+판별한 모드의 공식에 따라 질문 ${count}개를 만든다.
 
 ${allFormulas}`
   } else {
     modeSection = `# 질문 생성
-이 글은 "${mode}" 모드로 다룬다. 아래 공식에 따라 질문 ${count}개를 만든다.
-출력 JSON의 mode 필드에는 "${mode}"를 넣어라.
+이 글은 "${mode}" 모드로 다룬다.
+아래 공식에 따라 질문 ${count}개를 만든다.
+출력 JSON의 mode 필드에는 "${mode}"를 넣는다.
 
 ${MODE_FORMULAS[mode]}`
   }
@@ -44,16 +41,11 @@ ${MODE_FORMULAS[mode]}`
     .replaceAll('{{COUNT}}', String(count))
 }
 
-// 실제 API에 보낼 user 메시지: 본문 텍스트.
-// 본문·선택 영역의 최대 글자 수. 이 값을 넘는 선택은 거부하고,
-// 선택 없이 추출한 전체 본문은 앞부분만 잘라 보낸다. (토큰 절약)
-export const MAX_ARTICLE_CHARS = 12000
-
-// (본문이 너무 길면 앞부분만 — 토큰 절약. 임계값은 튜닝 대상)
 export function buildUserMessage(articleText: string, maxChars = MAX_ARTICLE_CHARS): string {
   const trimmed =
     articleText.length > maxChars
-      ? articleText.slice(0, maxChars) + '\n\n...(이하 생략)'
+      ? `${articleText.slice(0, maxChars)}\n\n...(이하 생략)`
       : articleText
+
   return `다음은 사용자가 방금 읽은 글의 본문이다:\n\n"""\n${trimmed}\n"""`
 }

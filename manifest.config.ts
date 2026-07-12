@@ -38,7 +38,7 @@ export default defineManifest({
     'sidePanel', // 사이드패널 API
     'tabs', // 활성 탭 조회
     'storage', // provider 선택값 · API 키 · 프롬프트 저장
-    'scripting', // 이미 열려 있던 탭에 content script 직접 주입 (새로고침 불필요)
+    'scripting', // 사용자 동작 후 활성 탭에서 본문 추출/스크롤 함수를 실행
     'activeTab', // 위 주입에 필요한 활성 탭 접근 권한 (아이콘 클릭 제스처로 부여)
   ],
 
@@ -49,14 +49,11 @@ export default defineManifest({
     'https://generativelanguage.googleapis.com/*',
   ],
 
-  // 본문 추출용 content script. 모든 페이지에 주입되지만
-  // 평소엔 메시지 리스너만 달고 있고, 사용자가 "질문 생성"을 눌러
-  // EXTRACT 메시지가 올 때만 DOM을 읽는다. (프라이버시: 자동 전송 없음)
-  content_scripts: [
-    {
-      matches: ['http://*/*', 'https://*/*'],
-      js: ['src/content/extract.ts'],
-      run_at: 'document_idle',
-    },
+  optional_host_permissions: [
+    'http://*/*',
+    'https://*/*',
   ],
+
+  // 본문 추출은 content_scripts로 모든 사이트에 자동 주입하지 않는다.
+  // 사이드패널을 연 뒤 필요한 순간에 activeTab + scripting으로 활성 탭에서만 실행한다.
 })
